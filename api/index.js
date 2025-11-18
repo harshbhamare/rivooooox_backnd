@@ -5,12 +5,6 @@ import express from "express";
 import cors from "cors";
 import dbCheck from "../middlewares/dbCheck.js";
 
-
-import express from "express";
-import cors from "cors";
-
-import dbCheck from "../middlewares/dbCheck.js";
-
 const app = express();
 
 app.use(dbCheck);
