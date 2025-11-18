@@ -3,7 +3,7 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
-import dbCheck from "../middlewares/dbCheck.js";
+import dbCheck from "./middlewares/dbCheck.js";
 
 const app = express();
 
@@ -20,14 +20,14 @@ app.get("/", (req, res) => {
   });
 });
 
-import studentRoutes from '../routes/students.js'
-import authRoutes from '../routes/auth.js'
-import directorRoutes from "../routes/director.js";
-import hodRoutes from "../routes/hod.js"
-import classTeacherRoutes from "../routes/classTeacherRoutes.js"
-import facultyRoutes from "../routes/faculty.js"
-import defaulterRoutes from "../routes/defaulter.js"
-import submissionRoutes from "../routes/submissionRoute.js"
+import studentRoutes from './routes/students.js'
+import authRoutes from './routes/auth.js'
+import directorRoutes from "./routes/director.js";
+import hodRoutes from "./routes/hod.js"
+import classTeacherRoutes from "./routes/classTeacherRoutes.js"
+import facultyRoutes from "./routes/faculty.js"
+import defaulterRoutes from "./routes/defaulter.js"
+import submissionRoutes from "./routes/submissionRoute.js"
 
 app.use('/api/students', studentRoutes)
 app.use("/api/auth", authRoutes);
