@@ -6,7 +6,7 @@ import fs from "fs"
 import { supabase } from '../db/supabaseClient.js'
 import { authenticateUser, authorizeRoles  } from "../middlewares/auth.js";
 
-const upload = multer({ dest: "uploads/" });
+// const upload = multer({ dest: "uploads/" });
 const calculateDefaulter = (attendance) => attendance < 75;
 const router = express.Router();
 
