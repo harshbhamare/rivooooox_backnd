@@ -1123,4 +1123,54 @@ router.put("/unlock-student-selections/:studentId", authenticateUser, authorizeR
   }
 });
 
+// Delete subject
+router.delete("/subjects/:id", authenticateUser, authorizeRoles("class_teacher"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const classId = req.user.class_id;
+
+    if (!classId) {
+      return res.status(400).json({ success: false, error: "Missing class_id in token" });
+    }
+
+    // Verify subject belongs to this class
+    const { data: subject, error: subjectError } = await supabase
+      .from("subjects")
+      .select("id, class_id")
+      .eq("id", id)
+      .single();
+
+    if (subjectError || !subject) {
+      return res.status(404).json({ success: false, error: "Subject not found" });
+    }
+
+    if (subject.class_id !== classId) {
+      return res.status(403).json({ success: false, error: "Unauthorized to delete this subject" });
+    }
+
+    // Delete faculty_subjects first (cascade or manual)
+    const { error: deleteFacultySubjectsError } = await supabase
+      .from("faculty_subjects")
+      .delete()
+      .eq("subject_id", id);
+
+    if (deleteFacultySubjectsError) {
+      console.error("Error deleting faculty_subjects:", deleteFacultySubjectsError);
+    }
+
+    // Delete subject
+    const { error: deleteError } = await supabase
+      .from("subjects")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) throw deleteError;
+
+    res.status(200).json({ success: true, message: "Subject deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting subject:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
