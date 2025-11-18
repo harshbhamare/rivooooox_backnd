@@ -548,7 +548,7 @@ router.post("/create-batch", authenticateUser, authorizeRoles("class_teacher", "
 });
 
 router.post("/import-students", authenticateUser, authorizeRoles("class_teacher", "faculty"),
-  upload.single("file"),
+  // upload.single("file"),
   async (req, res) => {
     try {
       if (!req.file)
