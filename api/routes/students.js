@@ -7,8 +7,6 @@ const router = express.Router()
 // Test endpoint to debug authentication
 router.get("/debug-auth", authenticateUser, authorizeRoles("student"), async (req, res) => {
   try {
-    console.log('Debug auth - Full req.user:', req.user);
-
     const student_id = req.user.id;
 
     // Check if student exists
@@ -251,23 +249,38 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
       };
     });
 
-    // Calculate submission percentage (exclude defaulter work for non-defaulter students)
+// Calculate submission percentage based on subject type
+    // Practical subjects: TA only = 1 submission (no CIE, no defaulter work)
+    // Theory subjects: CIE + TA = 2 submissions (+ Defaulter if defaulter student = 3)
     const isDefaulter = student.defaulter;
-    const submissionsPerSubject = isDefaulter ? 3 : 2; // CIE, TA, and optionally Defaulter work
-    const totalSubmissions = subjectsWithSubmissions.length * submissionsPerSubject;
+    
+    let totalSubmissions = 0;
+    let completedSubmissions = 0;
 
-    const completedSubmissions = subjectsWithSubmissions.reduce((count, subject) => {
+    subjectsWithSubmissions.forEach(subject => {
+      let subjectTotal = 0;
       let subjectCompleted = 0;
-      subjectCompleted += (subject.submissions.cie === 'completed' ? 1 : 0);
-      subjectCompleted += (subject.submissions.ta === 'completed' ? 1 : 0);
 
-      // Only count defaulter work for defaulter students
-      if (isDefaulter) {
-        subjectCompleted += (subject.submissions.defaulter === 'completed' ? 1 : 0);
+      if (subject.type === 'practical') {
+        // Practical subjects: ONLY TA counts (no CIE, no defaulter work)
+        subjectTotal = 1;
+        subjectCompleted += (subject.submissions.ta === 'completed' ? 1 : 0);
+      } else {
+        // Theory subjects (including electives): CIE + TA
+        subjectTotal = 2;
+        subjectCompleted += (subject.submissions.cie === 'completed' ? 1 : 0);
+        subjectCompleted += (subject.submissions.ta === 'completed' ? 1 : 0);
+        
+        // Add defaulter work ONLY for theory subjects if student is defaulter
+        if (isDefaulter) {
+          subjectTotal += 1;
+          subjectCompleted += (subject.submissions.defaulter === 'completed' ? 1 : 0);
+        }
       }
 
-      return count + subjectCompleted;
-    }, 0);
+      totalSubmissions += subjectTotal;
+      completedSubmissions += subjectCompleted;
+    });
 
     const submissionPercentage = totalSubmissions > 0 ? Math.round((completedSubmissions / totalSubmissions) * 100) : 0;
 
@@ -316,8 +329,6 @@ router.get("/subjects", authenticateUser, authorizeRoles("student"), async (req,
     const student_id = req.user.id;
     const class_id = req.user.class_id;
     const batch_id = req.user.batch_id;
-
-    console.log('Student subjects request:', { student_id, class_id, batch_id });
 
     if (!student_id) {
       return res.status(400).json({
@@ -554,8 +565,6 @@ router.get("/elective-subjects", authenticateUser, authorizeRoles("student"), as
     const student_id = req.user.id;
     const class_id = req.user.class_id;
 
-    console.log('Student elective subjects request:', { student_id, class_id });
-
     // Get student's class information to determine year
     const { data: classInfo, error: classError } = await supabase
       .from("classes")
@@ -704,8 +713,6 @@ router.get("/defaulter-work", authenticateUser, authorizeRoles("student"), async
   try {
     const student_id = req.user.id;
 
-    console.log('📋 Fetching defaulter work for student:', student_id);
-
     // Get student's elective selections
     const { data: studentSelections, error: selectionsError } = await supabase
       .from("student_subject_selection")
@@ -798,11 +805,7 @@ router.get("/defaulter-work", authenticateUser, authorizeRoles("student"), async
   }
 });
 
-router.post(
-  "/select-elective",
-  authenticateUser,
-  authorizeRoles("student"),
-  async (req, res) => {
+router.post("/select-elective", authenticateUser, authorizeRoles("student"), async (req, res) => {
     try {
       const { subject_id, faculty_id, type } = req.body;
       const student_id = req.user.id;
@@ -893,11 +896,7 @@ router.post(
 );
 
 // Lock student's elective selections
-router.post(
-  "/lock-selections",
-  authenticateUser,
-  authorizeRoles("student"),
-  async (req, res) => {
+router.post("/lock-selections", authenticateUser, authorizeRoles("student"), async (req, res) => {
     try {
       const student_id = req.user.id;
       const class_id = req.user.class_id;
@@ -974,9 +973,6 @@ router.post(
     }
   }
 );
-
-
-
 
 
 export default router;
