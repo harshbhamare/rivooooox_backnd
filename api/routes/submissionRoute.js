@@ -344,12 +344,30 @@ router.get("/students", authenticateUser, authorizeRoles("faculty", "class_teach
 
       if (submissionsError) throw submissionsError;
 
-      // Get submission types
+      // Get the subject type to filter submission types
+      const { data: subjectData, error: subjectError } = await supabase
+        .from("subjects")
+        .select("type")
+        .eq("id", subject_id)
+        .single();
+
+      if (subjectError) throw subjectError;
+
+      const subjectType = (subjectData?.type || 'theory').toLowerCase();
+
+      // Get submission types with applicable_to field
       const { data: submissionTypes, error: typesError } = await supabase
         .from("submission_types")
-        .select("*");
+        .select("id, name, applicable_to");
 
       if (typesError) throw typesError;
+
+      // Filter submission types based on subject type and applicable_to
+      const applicableSubmissionTypes = (submissionTypes || []).filter(type => {
+        const applicableTo = type.applicable_to || [];
+        return applicableTo.includes(subjectType);
+      });
+
 
       // Map submissions to students
       const studentsWithSubmissions = students.map(student => {
@@ -372,7 +390,8 @@ router.get("/students", authenticateUser, authorizeRoles("faculty", "class_teach
       return res.json({
         success: true,
         students: studentsWithSubmissions,
-        submission_types: submissionTypes,
+        submission_types: applicableSubmissionTypes,
+        subject_type: subjectType
       });
     } catch (err) {
       console.error("Error fetching students:", err);
@@ -382,10 +401,7 @@ router.get("/students", authenticateUser, authorizeRoles("faculty", "class_teach
 );
 
 
-router.post(
-  "/mark-submission",
-  authenticateUser,
-  authorizeRoles("faculty", "class_teacher", "hod"),
+router.post("/mark-submission", authenticateUser, authorizeRoles("faculty", "class_teacher", "hod"),
   async (req, res) => {
     try {
       const { student_id, subject_id, submission_type, status } = req.body;
