@@ -423,15 +423,14 @@ router.post("/mark-submission", authenticateUser, authorizeRoles("faculty", "cla
       }
 
       // 🧩 2️⃣ Verify faculty can actually mark this subject
-      const { data: allowedSubject, error: allowedError } = await supabase
+      const { data: allowedSubjects, error: allowedError } = await supabase
         .from("faculty_subjects")
         .select("id")
         .eq("faculty_id", marked_by)
-        .eq("subject_id", subject_id)
-        .maybeSingle();
+        .eq("subject_id", subject_id);
 
       if (allowedError) throw allowedError;
-      if (!allowedSubject) {
+      if (!allowedSubjects || allowedSubjects.length === 0) {
         return res.status(403).json({
           success: false,
           error: "You are not authorized to mark submissions for this subject.",
@@ -518,9 +517,6 @@ router.post("/mark-submission", authenticateUser, authorizeRoles("faculty", "cla
     }
   }
 );
-
-
-
 
 
 // Get dashboard statistics for class teacher
