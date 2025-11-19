@@ -630,7 +630,6 @@ router.get("/dashboard-statistics", authenticateUser, authorizeRoles("faculty", 
   }
 );
 
-// Get subject-wise submission statistics
 router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "class_teacher", "hod"),
   async (req, res) => {
     try {
@@ -816,13 +815,73 @@ router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "c
               };
             });
 
+            // Calculate overall completion percentage based on subject type
+            // Practical: TA only
+            // Theory: CIE + TA (+ Defaulter for defaulter students)
+            let totalRequired = 0;
+            let totalCompleted = 0;
+
+            (students || []).forEach(student => {
+              if (subject.type === 'practical') {
+                // Practical: only TA
+                totalRequired += 1;
+                const taSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'TA')
+                );
+                if (taSubmission && taSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+              } else {
+                // Theory: CIE + TA
+                totalRequired += 2;
+                const taSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'TA')
+                );
+                const cieSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'CIE')
+                );
+                if (taSubmission && taSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+                if (cieSubmission && cieSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+                
+                // Add defaulter work for defaulter students
+                if (student.defaulter) {
+                  totalRequired += 1;
+                  const defaulterSubmission = submissions.find(s => 
+                    s.student_id === student.id && 
+                    submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'Defaulter work')
+                  );
+                  if (defaulterSubmission && defaulterSubmission.status === 'completed') {
+                    totalCompleted += 1;
+                  }
+                }
+              }
+            });
+
+            const completionPercentage = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 0;
+
+            // Get class name
+            const { data: classData } = await supabase
+              .from('classes')
+              .select('name')
+              .eq('id', fs.class_id)
+              .single();
+
             return {
               id: subject.id,
               name: subject.name,
               code: subject.subject_code,
               type: subject.type,
+              className: classData?.name || '',
               totalStudents: totalStudents || 0,
               defaulterCount,
+              completionPercentage,
               submissionStats: typeStats
             };
           } catch (error) {
@@ -883,13 +942,64 @@ router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "c
               };
             });
 
+            // Calculate overall completion percentage based on subject type
+            let totalRequired = 0;
+            let totalCompleted = 0;
+
+            (students || []).forEach(student => {
+              if (subject.type === 'practical') {
+                // Practical: only TA
+                totalRequired += 1;
+                const taSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'TA')
+                );
+                if (taSubmission && taSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+              } else {
+                // Theory: CIE + TA
+                totalRequired += 2;
+                const taSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'TA')
+                );
+                const cieSubmission = submissions.find(s => 
+                  s.student_id === student.id && 
+                  submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'CIE')
+                );
+                if (taSubmission && taSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+                if (cieSubmission && cieSubmission.status === 'completed') {
+                  totalCompleted += 1;
+                }
+                
+                // Add defaulter work for defaulter students
+                if (student.defaulter) {
+                  totalRequired += 1;
+                  const defaulterSubmission = submissions.find(s => 
+                    s.student_id === student.id && 
+                    submissionTypes.find(t => t.id === s.submission_type_id && t.name === 'Defaulter work')
+                  );
+                  if (defaulterSubmission && defaulterSubmission.status === 'completed') {
+                    totalCompleted += 1;
+                  }
+                }
+              }
+            });
+
+            const completionPercentage = totalRequired > 0 ? Math.round((totalCompleted / totalRequired) * 100) : 0;
+
             return {
               id: subject.id,
               name: subject.name,
               code: subject.subject_code,
               type: subject.type,
+              className: 'Elective',
               totalStudents,
               defaulterCount,
+              completionPercentage,
               submissionStats: typeStats
             };
           } catch (error) {
@@ -911,5 +1021,6 @@ router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "c
     }
   }
 );
+
 
 export default router;
