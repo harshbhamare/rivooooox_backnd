@@ -10,6 +10,49 @@ import { authenticateUser, authorizeRoles  } from "../middlewares/auth.js";
 const calculateDefaulter = (attendance) => attendance < 75;
 const router = express.Router();
 
+router.get('/class-info', authenticateUser, authorizeRoles("class_teacher"), async (req, res) => {
+  try {
+    const class_id = req.user.class_id;
+
+    if (!class_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'No class assigned to this teacher'
+      });
+    }
+
+    // Fetch class details from classes table
+    const { data: classData, error } = await supabase
+      .from('classes')
+      .select('id, name, year, department_id')
+      .eq('id', class_id)
+      .single();
+
+    if (error) throw error;
+
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        error: 'Class not found'
+      });
+    }
+
+    return res.json({
+      success: true,
+      class: {
+        id: classData.id,
+        name: classData.name,
+        division: classData.name, // Division is the class name
+        year: classData.year,
+        department_id: classData.department_id
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching class info:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Get all faculties (all users except directors)
 router.get('/faculties', authenticateUser, authorizeRoles("class_teacher", "faculty"), async (req, res) => {
   try {
