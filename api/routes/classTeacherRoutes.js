@@ -6,10 +6,11 @@ import fs from "fs"
 import { supabase } from '../db/supabaseClient.js'
 import { authenticateUser, authorizeRoles  } from "../middlewares/auth.js";
 
-// const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: "uploads/" });
 const calculateDefaulter = (attendance) => attendance < 75;
 const router = express.Router();
 
+// Get class/division info for class teacher
 router.get('/class-info', authenticateUser, authorizeRoles("class_teacher"), async (req, res) => {
   try {
     const class_id = req.user.class_id;
@@ -591,7 +592,7 @@ router.post("/create-batch", authenticateUser, authorizeRoles("class_teacher", "
 });
 
 router.post("/import-students", authenticateUser, authorizeRoles("class_teacher", "faculty"),
-  // upload.single("file"),
+  upload.single("file"),
   async (req, res) => {
     try {
       if (!req.file)
@@ -813,10 +814,20 @@ router.get('/subjects', authenticateUser, authorizeRoles("class_teacher", "facul
       subjects.theory = allSubjects.filter(s => s.type !== 'practical');
       subjects.practical = allSubjects.filter(s => s.type === 'practical');
     } else {
-      // For class teachers, get all subjects
+      // For class teachers, get subjects for their class only
+      const class_id = req.user.class_id;
+
+      if (!class_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'No class assigned to this teacher'
+        });
+      }
+
       const { data: allSubjects, error } = await supabase
         .from('subjects')
-        .select('id, name, subject_code, type');
+        .select('id, name, subject_code, type')
+        .eq('class_id', class_id);
 
       if (error) throw error;
 
@@ -883,10 +894,6 @@ router.put('/availability', authenticateUser, authorizeRoles("class_teacher", "f
   try {
     const userId = req.user.id;
     const { isAvailable, selectedSubjects } = req.body;
-
-    console.log('📝 Updating availability for user:', userId);
-    console.log('📝 Is Available:', isAvailable);
-    console.log('📝 Selected Subjects:', selectedSubjects);
 
     if (!Array.isArray(selectedSubjects)) {
       return res.status(400).json({ 
@@ -964,7 +971,6 @@ router.get('/available-subjects', authenticateUser, authorizeRoles("class_teache
   try {
     const userId = req.user.id;
     
-    console.log('📊 Fetching available subjects for user:', userId);
     
     const { data, error } = await supabase
       .from('faculty_availability')
