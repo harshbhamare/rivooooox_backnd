@@ -142,7 +142,9 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
     const taType = (submissionTypes || []).find(t => t.name === 'TA');
     const cieType = (submissionTypes || []).find(t => t.name === 'CIE');
 
-    // Calculate submission percentage for each student across all subjects
+    // Calculate submission percentage for each student based on submission counts
+    // Practical subjects: TA only = 1 submission (no CIE, no defaulter work)
+    // Theory subjects: CIE + TA = 2 submissions (+ Defaulter if defaulter student = 3)
     const students = (data || []).map(s => {
       if (totalSubjects === 0) {
         return {
@@ -152,39 +154,45 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
         };
       }
 
-      // Get student's submissions
+      const isDefaulter = s.defaulter;
       const studentSubmissions = (submissions || []).filter(sub => sub.student_id === s.id);
       
-      // Count subjects where student completed required submissions
-      let completedSubjects = 0;
+      let totalSubmissions = 0;
+      let completedSubmissions = 0;
 
       (subjects || []).forEach(subject => {
-        // Get submissions for this subject
         const subjectSubmissions = studentSubmissions.filter(sub => sub.subject_id === subject.id);
         
-        // For practical subjects: only TA is required
-        // For theory/MDM/OE/PE: both TA and CIE are required
-        let isSubjectComplete = false;
-        
+        let subjectTotal = 0;
+        let subjectCompleted = 0;
+
         if (subject.type === 'practical') {
-          // Check if TA is completed
+          // Practical subjects: ONLY TA counts (no CIE, no defaulter work)
+          subjectTotal = 1;
           const taSubmission = subjectSubmissions.find(sub => sub.submission_type_id === taType?.id);
-          isSubjectComplete = taSubmission && taSubmission.status === 'completed';
+          subjectCompleted += (taSubmission && taSubmission.status === 'completed' ? 1 : 0);
         } else {
-          // Check if both TA and CIE are completed
+          // Theory subjects (including electives): CIE + TA
+          subjectTotal = 2;
           const taSubmission = subjectSubmissions.find(sub => sub.submission_type_id === taType?.id);
           const cieSubmission = subjectSubmissions.find(sub => sub.submission_type_id === cieType?.id);
-          isSubjectComplete = 
-            taSubmission && taSubmission.status === 'completed' &&
-            cieSubmission && cieSubmission.status === 'completed';
+          subjectCompleted += (taSubmission && taSubmission.status === 'completed' ? 1 : 0);
+          subjectCompleted += (cieSubmission && cieSubmission.status === 'completed' ? 1 : 0);
+          
+          // Add defaulter work ONLY for theory subjects if student is defaulter
+          if (isDefaulter) {
+            subjectTotal += 1;
+            const defaulterType = (submissionTypes || []).find(t => t.name === 'Defaulter work');
+            const defaulterSubmission = subjectSubmissions.find(sub => sub.submission_type_id === defaulterType?.id);
+            subjectCompleted += (defaulterSubmission && defaulterSubmission.status === 'completed' ? 1 : 0);
+          }
         }
 
-        if (isSubjectComplete) {
-          completedSubjects++;
-        }
+        totalSubmissions += subjectTotal;
+        completedSubmissions += subjectCompleted;
       });
 
-      const submissionPercentage = Math.round((completedSubjects / totalSubjects) * 100);
+      const submissionPercentage = totalSubmissions > 0 ? Math.round((completedSubmissions / totalSubmissions) * 100) : 0;
 
       return {
         ...s,
