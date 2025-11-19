@@ -29,9 +29,12 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
 
       if (fsError) throw fsError;
 
-      // Get batch names for practical subjects
+      // Get batch names and class names
       const batchIds = [...new Set((facultySubjects || []).map(fs => fs.batch_id).filter(Boolean))];
+      const classIds = [...new Set((facultySubjects || []).map(fs => fs.class_id).filter(Boolean))];
+      
       let batchMap = new Map();
+      let classMap = new Map();
 
       if (batchIds.length > 0) {
         const { data: batches, error: batchError } = await supabase
@@ -43,6 +46,16 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
         batchMap = new Map(batches?.map(b => [b.id, b.name]) || []);
       }
 
+      if (classIds.length > 0) {
+        const { data: classes, error: classError } = await supabase
+          .from("classes")
+          .select("id, name")
+          .in("id", classIds);
+
+        if (classError) throw classError;
+        classMap = new Map(classes?.map(c => [c.id, c.name]) || []);
+      }
+
       // Group subjects by type
       const subjectMap = new Map();
 
@@ -51,6 +64,7 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
         if (!subject) return;
 
         const subjectId = subject.id;
+        const className = classMap.get(fs.class_id) || '';
 
         if (subject.type === "theory") {
           // Theory subjects - one entry per subject
@@ -59,7 +73,8 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
               id: subject.id,
               code: subject.subject_code,
               name: subject.name,
-              type: "theory"
+              type: "theory",
+              className: className
             });
           }
         } else if (subject.type === "practical") {
@@ -70,6 +85,7 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
               code: subject.subject_code,
               name: subject.name,
               type: "practical",
+              className: className,
               batches: []
             });
           }
@@ -202,6 +218,7 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
     }
   }
 );
+
 
 // Get submission types
 router.get("/types", authenticateUser, async (req, res) => {
@@ -873,12 +890,24 @@ router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "c
               .eq('id', fs.class_id)
               .single();
 
+            // Get batch name for practical subjects
+            let batchName = '';
+            if (subject.type === 'practical' && fs.batch_id) {
+              const { data: batchData } = await supabase
+                .from('batches')
+                .select('name')
+                .eq('id', fs.batch_id)
+                .single();
+              batchName = batchData?.name || '';
+            }
+
             return {
               id: subject.id,
               name: subject.name,
               code: subject.subject_code,
               type: subject.type,
               className: classData?.name || '',
+              batchName: batchName,
               totalStudents: totalStudents || 0,
               defaulterCount,
               completionPercentage,
@@ -1021,6 +1050,5 @@ router.get("/subject-statistics", authenticateUser, authorizeRoles("faculty", "c
     }
   }
 );
-
 
 export default router;
