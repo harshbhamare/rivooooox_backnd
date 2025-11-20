@@ -75,6 +75,7 @@ router.get('/faculties', authenticateUser, authorizeRoles("class_teacher", "facu
 router.get('/students', authenticateUser, authorizeRoles("class_teacher", "faculty"), async (req, res) => {
   try {
     const classId = req.user.class_id;
+    console.log('User from token:', req.user);
     if (!classId) {
       console.error('Missing class_id in token. User:', req.user);
       return res.status(400).json({ 
@@ -108,7 +109,7 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
     const studentIds = (data || []).map(s => s.id);
 
     // Get all subjects for this class
-    const { data: subjects, error: subjectsError } = await supabase
+    const { data: classSubjects, error: subjectsError } = await supabase
       .from('subjects')
       .select('id, type')
       .eq('class_id', classId);
@@ -117,7 +118,51 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
       console.error('Error fetching subjects:', subjectsError);
     }
 
-    const totalSubjects = (subjects || []).length;
+    // Also get elective subjects that students in this class have selected
+    const { data: electiveSelections, error: electiveError } = await supabase
+      .from('student_subject_selection')
+      .select('student_id, mdm_id, oe_id, pe_id')
+      .in('student_id', studentIds);
+
+    if (electiveError) {
+      console.error('Error fetching elective selections:', electiveError);
+    }
+
+    // Collect unique elective subject IDs
+    const electiveSubjectIds = new Set();
+    (electiveSelections || []).forEach(selection => {
+      if (selection.mdm_id) electiveSubjectIds.add(selection.mdm_id);
+      if (selection.oe_id) electiveSubjectIds.add(selection.oe_id);
+      if (selection.pe_id) electiveSubjectIds.add(selection.pe_id);
+    });
+
+    // Fetch elective subject details
+    let electiveSubjects = [];
+    if (electiveSubjectIds.size > 0) {
+      const { data: eSubjects, error: eSubjectsError } = await supabase
+        .from('subjects')
+        .select('id, type')
+        .in('id', Array.from(electiveSubjectIds));
+
+      if (eSubjectsError) {
+        console.error('Error fetching elective subjects:', eSubjectsError);
+      } else {
+        electiveSubjects = eSubjects || [];
+      }
+    }
+
+    // Combine class subjects and elective subjects
+    const allSubjects = [...(classSubjects || []), ...electiveSubjects];
+    
+    // Create a map for student -> elective subjects
+    const studentElectiveMap = new Map();
+    (electiveSelections || []).forEach(selection => {
+      const studentElectives = [];
+      if (selection.mdm_id) studentElectives.push(selection.mdm_id);
+      if (selection.oe_id) studentElectives.push(selection.oe_id);
+      if (selection.pe_id) studentElectives.push(selection.pe_id);
+      studentElectiveMap.set(selection.student_id, studentElectives);
+    });
 
     // Get all submissions for these students
     const { data: submissions, error: submissionsError } = await supabase
@@ -143,23 +188,30 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
 
     // Calculate submission percentage for each student based on submission counts
     // Practical subjects: TA only = 1 submission (no CIE, no defaulter work)
-    // Theory subjects: CIE + TA = 2 submissions (+ Defaulter if defaulter student = 3)
+    // Theory subjects (including electives): CIE + TA = 2 submissions (+ Defaulter if defaulter student = 3)
     const students = (data || []).map(s => {
-      if (totalSubjects === 0) {
+      const isDefaulter = s.defaulter;
+      const studentSubmissions = (submissions || []).filter(sub => sub.student_id === s.id);
+      
+      // Get subjects for this student: class subjects + their selected electives
+      const studentElectives = studentElectiveMap.get(s.id) || [];
+      const studentSubjects = [
+        ...(classSubjects || []),
+        ...electiveSubjects.filter(es => studentElectives.includes(es.id))
+      ];
+
+      if (studentSubjects.length === 0) {
         return {
           ...s,
           batch_name: s.batches?.name || null,
           submission_percentage: 0
         };
       }
-
-      const isDefaulter = s.defaulter;
-      const studentSubmissions = (submissions || []).filter(sub => sub.student_id === s.id);
       
       let totalSubmissions = 0;
       let completedSubmissions = 0;
 
-      (subjects || []).forEach(subject => {
+      studentSubjects.forEach(subject => {
         const subjectSubmissions = studentSubmissions.filter(sub => sub.subject_id === subject.id);
         
         let subjectTotal = 0;
