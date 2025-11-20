@@ -13,42 +13,42 @@ const router = express.Router();
 
 
 // POST /api/auth/register
-// router.post("/register", async (req, res) => {
-//   try {
-//     const { name, email, password, role, department_id } = req.body;
+router.post("/register", async (req, res) => {
+  try {
+    const { name, email, password, role, department_id } = req.body;
 
-//     if (!name || !email || !password || !role) {
-//       return res.status(400).json({ success: false, error: "All fields are required." });
-//     }
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ success: false, error: "All fields are required." });
+    }
 
-//     // Check if user already exists
-//     const { data: existingUser } = await supabase
-//       .from("users")
-//       .select("*")
-//       .eq("email", email)
-//       .single();
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
 
-//     if (existingUser) {
-//       return res.status(400).json({ success: false, error: "User already exists." });
-//     }
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: "User already exists." });
+    }
 
-//     // Hash password before saving
-//     const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-//     // Insert new user
-//     const { data, error } = await supabase
-//       .from("users")
-//       .insert([{ name, email, password: hashedPassword, role, department_id }])
-//       .select();
+    // Insert new user
+    const { data, error } = await supabase
+      .from("users")
+      .insert([{ name, email, password: hashedPassword, role, department_id }])
+      .select();
 
-//     if (error) throw error;
+    if (error) throw error;
 
-//     res.status(201).json({ success: true, message: "User registered successfully", data });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ success: false, error: err.message });
-//   }
-// });
+    res.status(201).json({ success: true, message: "User registered successfully", data });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 router.post("/login", async (req, res) => {
   try {
