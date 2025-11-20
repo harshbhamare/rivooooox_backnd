@@ -222,7 +222,6 @@ router.delete("/faculty/:id", authenticateUser, authorizeRoles("director"), asyn
 // Get department-wise submission statistics
 router.get("/department-statistics", authenticateUser, authorizeRoles("director"), async (req, res) => {
   try {
-    console.log('📊 Fetching department statistics for director');
 
     // Get all departments
     const { data: departments, error: deptError } = await supabase
@@ -318,8 +317,6 @@ router.get("/department-statistics", authenticateUser, authorizeRoles("director"
         };
       })
     );
-
-    console.log('✅ Department statistics calculated:', deptStats);
 
     return res.json({
       success: true,

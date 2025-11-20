@@ -75,7 +75,6 @@ router.get('/faculties', authenticateUser, authorizeRoles("class_teacher", "facu
 router.get('/students', authenticateUser, authorizeRoles("class_teacher", "faculty"), async (req, res) => {
   try {
     const classId = req.user.class_id;
-    console.log('User from token:', req.user);
     if (!classId) {
       console.error('Missing class_id in token. User:', req.user);
       return res.status(400).json({ 
@@ -201,8 +200,6 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
       };
     });
 
-    console.log('✅ Students with overall subject submission percentages calculated');
-
     return res.json({ success: true, students });
   } catch (err) {
     console.error('Error fetching students:', err);
@@ -213,7 +210,6 @@ router.get('/students', authenticateUser, authorizeRoles("class_teacher", "facul
 router.get('/batches', authenticateUser, authorizeRoles("class_teacher", "faculty"), async (req, res) => {
   try {
     const classId = req.user.class_id;
-    console.log('User from token (batches):', req.user);
     if (!classId) {
       console.error('Missing class_id in token. User:', req.user);
       return res.status(400).json({ 
@@ -394,7 +390,6 @@ router.delete("/student/:id", authenticateUser, authorizeRoles("class_teacher", 
 router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher", "faculty"),
   async (req, res) => {
     try {
-      console.log('📚 Subject assign request received:', req.body);
       
       const {
         class_id,
@@ -406,14 +401,13 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
       } = req.body;
 
       if (!class_id || !subject_code || !subject_name || !type) {
-        console.error('❌ Missing required fields:', { class_id, subject_code, subject_name, type });
+        console.error('Missing required fields:', { class_id, subject_code, subject_name, type });
         return res
           .status(400)
           .json({ success: false, error: "Missing required fields." });
       }
 
       // Get department_id from the class
-      console.log('🔍 Fetching class data for class_id:', class_id);
       const { data: classData, error: classError } = await supabase
         .from("classes")
         .select("department_id")
@@ -421,14 +415,13 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
         .single();
 
       if (classError || !classData) {
-        console.error('❌ Class not found or error:', classError);
+        console.error('Class not found or error:', classError);
         return res
           .status(400)
           .json({ success: false, error: "Invalid class_id or class not found." });
       }
 
       const department_id = classData.department_id;
-      console.log('✅ Found department_id:', department_id);
 
       if (type === "theory" && !faculty_id) {
         return res
@@ -442,8 +435,6 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
           error: "faculty_assignments array required for practical subjects.",
         });
       }
-
-      console.log('💾 Inserting subject:', { name: subject_name, subject_code, type, department_id, class_id });
       
       const { data: subjectData, error: subjectError } = await supabase
         .from("subjects")
@@ -460,12 +451,11 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
         .single();
 
       if (subjectError) {
-        console.error('❌ Subject insert error:', subjectError);
+        console.error('Subject insert error:', subjectError);
         throw subjectError;
       }
 
       const subject_id = subjectData.id;
-      console.log('✅ Subject created with ID:', subject_id);
 
       let insertData = [];
 
@@ -494,7 +484,6 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
         }
       }
 
-      console.log('💾 Inserting faculty assignments:', insertData);
       
       const { data: assignedData, error: assignError } = await supabase
         .from("faculty_subjects")
@@ -502,11 +491,9 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
         .select();
 
       if (assignError) {
-        console.error('❌ Faculty assignment error:', assignError);
+        console.error('Faculty assignment error:', assignError);
         throw assignError;
       }
-
-      console.log('✅ Subject assigned successfully');
 
       res.status(201).json({
         success: true,
@@ -529,22 +516,20 @@ router.post("/subjects/assign", authenticateUser, authorizeRoles("class_teacher"
 
 router.post("/create-batch", authenticateUser, authorizeRoles("class_teacher", "hod"), async (req, res) => {
   try {
-    console.log('📦 Create batch request:', req.body);
     const { name, roll_start, roll_end, faculty_id } = req.body;
     const class_id = req.user.class_id; // from token
 
     if (!class_id) {
-      console.error('❌ Class ID missing in token');
+      console.error('Class ID missing in token');
       return res.status(403).json({ success: false, error: "Class ID missing in token" });
     }
 
     if (!name || !roll_start || !roll_end || !faculty_id) {
-      console.error('❌ Missing required fields:', { name, roll_start, roll_end, faculty_id });
+      console.error('Missing required fields:', { name, roll_start, roll_end, faculty_id });
       return res.status(400).json({ success: false, error: "All fields are required" });
     }
 
-    // 1️⃣ Create batch
-    console.log('💾 Creating batch:', { name, roll_start, roll_end, faculty_id, class_id });
+    // 1️Create batch
     const { data: batchData, error: batchError } = await supabase
       .from("batches")
       .insert([{ name, roll_start, roll_end, faculty_id, class_id }])
@@ -552,15 +537,14 @@ router.post("/create-batch", authenticateUser, authorizeRoles("class_teacher", "
       .single();
 
     if (batchError) {
-      console.error("❌ Batch insert error:", batchError);
+      console.error("Batch insert error:", batchError);
       return res.status(500).json({ success: false, error: batchError.message });
     }
 
     const batch_id = batchData.id;
-    console.log('✅ Batch created with ID:', batch_id);
 
-    // 2️⃣ Update students: assign them to this batch
-    console.log('📝 Updating students with roll_no between', roll_start, 'and', roll_end);
+    // Update students: assign them to this batch
+
     const { error: studentError } = await supabase
       .from("students")
       .update({ batch_id })
@@ -569,25 +553,23 @@ router.post("/create-batch", authenticateUser, authorizeRoles("class_teacher", "
       .eq("class_id", class_id);
 
     if (studentError) {
-      console.error("❌ Student update error:", studentError);
+      console.error("Student update error:", studentError);
       return res.status(500).json({ success: false, error: studentError.message });
     }
-    console.log('✅ Students updated with batch_id');
 
-    // 3️⃣ Link faculty to batch in faculty_subjects
-    console.log('🔗 Linking faculty to batch');
+    // Link faculty to batch in faculty_subjects
+
     const { error: facultySubError } = await supabase
       .from("faculty_subjects")
       .insert([{ faculty_id, class_id, batch_id }]);
 
     if (facultySubError) {
-      console.error("⚠️ Faculty_subject insert error:", facultySubError);
+      console.error("Faculty_subject insert error:", facultySubError);
       // Non-critical error, but inform user
     } else {
-      console.log('✅ Faculty linked to batch');
+      console.log('Faculty linked to batch');
     }
 
-    console.log('✅ Batch creation complete');
     return res.status(200).json({
       success: true,
       message: "Batch created and faculty linked successfully",
@@ -869,8 +851,6 @@ router.get('/availability', authenticateUser, authorizeRoles("class_teacher", "f
   try {
     const userId = req.user.id;
     
-    console.log('📊 Fetching availability for user:', userId);
-    
     // Get all availability records for this faculty
     const { data, error } = await supabase
       .from('faculty_availability')
@@ -881,18 +861,17 @@ router.get('/availability', authenticateUser, authorizeRoles("class_teacher", "f
       .maybeSingle();
 
     if (error) {
-      console.error('❌ Error fetching availability:', error);
+      console.error('Error fetching availability:', error);
       throw error;
     }
 
-    console.log('✅ Availability fetched:', data?.is_available);
 
     return res.json({ 
       success: true, 
       isAvailable: data?.is_available || false 
     });
   } catch (err) {
-    console.error('❌ Error fetching availability:', err);
+    console.error('Error fetching availability:', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -917,7 +896,7 @@ router.put('/availability', authenticateUser, authorizeRoles("class_teacher", "f
       .eq('faculty_id', userId);
 
     if (deleteError) {
-      console.error('❌ Error deleting old records:', deleteError);
+      console.error('Error deleting old records:', deleteError);
       throw deleteError;
     }
 
@@ -930,12 +909,12 @@ router.put('/availability', authenticateUser, authorizeRoles("class_teacher", "f
         .in('subject_code', selectedSubjects);
 
       if (subjectsError) {
-        console.error('❌ Error fetching subjects:', subjectsError);
+        console.error(' Error fetching subjects:', subjectsError);
         throw subjectsError;
       }
 
       if (!subjects || subjects.length === 0) {
-        console.error('❌ No subjects found for codes:', selectedSubjects);
+        console.error('No subjects found for codes:', selectedSubjects);
         return res.status(400).json({ 
           success: false, 
           error: 'Invalid subject codes' 
@@ -954,13 +933,11 @@ router.put('/availability', authenticateUser, authorizeRoles("class_teacher", "f
         .insert(availabilityRecords);
 
       if (insertError) {
-        console.error('❌ Error inserting availability records:', insertError);
+        console.error('Error inserting availability records:', insertError);
         throw insertError;
       }
-
-      console.log('✅ Availability updated for', selectedSubjects.length, 'subjects');
     } else {
-      console.log('✅ Availability set to offline (no subjects)');
+      console.log('Availability set to offline (no subjects)');
     }
 
     return res.json({ 
@@ -969,7 +946,7 @@ router.put('/availability', authenticateUser, authorizeRoles("class_teacher", "f
       selectedSubjects
     });
   } catch (err) {
-    console.error('❌ Error updating availability:', err);
+    console.error('Error updating availability:', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -993,7 +970,7 @@ router.get('/available-subjects', authenticateUser, authorizeRoles("class_teache
       .eq('is_available', true);
 
     if (error) {
-      console.error('❌ Error fetching available subjects:', error);
+      console.error('Error fetching available subjects:', error);
       throw error;
     }
 
@@ -1002,15 +979,13 @@ router.get('/available-subjects', authenticateUser, authorizeRoles("class_teache
       .map(record => record.subjects.subject_code);
     const isAvailable = availableSubjects.length > 0;
 
-    console.log('✅ Available subjects fetched:', availableSubjects);
-
     return res.json({ 
       success: true, 
       isAvailable,
       selectedSubjects: availableSubjects
     });
   } catch (err) {
-    console.error('❌ Error fetching available subjects:', err);
+    console.error('Error fetching available subjects:', err);
     return res.status(500).json({ success: false, error: err.message });
   }
 });

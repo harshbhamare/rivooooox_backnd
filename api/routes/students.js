@@ -59,11 +59,8 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
     const class_id = req.user.class_id;
     const batch_id = req.user.batch_id;
 
-    console.log('Student dashboard request:', { student_id, class_id, batch_id });
-    console.log('Full user object from token:', JSON.stringify(req.user, null, 2));
-
     if (!student_id) {
-      console.error('❌ Missing student_id in token');
+      console.error(' Missing student_id in token');
       return res.status(400).json({
         success: false,
         error: "Missing student_id in token",
@@ -72,14 +69,11 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
     }
 
     // Get student basic info first to check if class_id exists in database
-    console.log('Searching for student with ID:', student_id);
     const { data: student, error: studentError } = await supabase
       .from("students")
       .select("*")
       .eq("id", student_id)
       .maybeSingle();
-
-    console.log('Student query result:', { student, studentError });
 
     if (studentError) {
       console.error('Student fetch error:', studentError);
@@ -87,7 +81,6 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
     }
 
     if (!student) {
-      console.log('❌ No student found with ID:', student_id);
       return res.status(404).json({
         success: false,
         error: "Student not found"
@@ -97,7 +90,7 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
     // Check if student has class_id
     const studentClassId = student.class_id || class_id;
     if (!studentClassId) {
-      console.error('❌ Student has no class_id assigned:', student.name);
+      console.error('Student has no class_id assigned:', student.name);
       return res.status(400).json({
         success: false,
         error: "You are not assigned to a class yet. Please contact your administrator.",
@@ -283,14 +276,6 @@ router.get("/dashboard", authenticateUser, authorizeRoles("student"), async (req
     });
 
     const submissionPercentage = totalSubmissions > 0 ? Math.round((completedSubmissions / totalSubmissions) * 100) : 0;
-
-    console.log('Dashboard data prepared:', {
-      studentName: student.name,
-      subjectsCount: subjectsWithSubmissions.length,
-      submissionPercentage,
-      totalSubmissions,
-      completedSubmissions
-    });
 
     return res.json({
       success: true,
@@ -541,14 +526,6 @@ router.get("/subjects", authenticateUser, authorizeRoles("student"), async (req,
       }
     }
 
-    console.log('Subjects organized:', {
-      theory: subjectsByType.theory.length,
-      practical: subjectsByType.practical.length,
-      mdm: subjectsByType.mdm.length,
-      oe: subjectsByType.oe.length,
-      pe: subjectsByType.pe.length
-    });
-
     return res.json({
       success: true,
       subjects: subjectsByType
@@ -605,13 +582,6 @@ router.get("/elective-subjects", authenticateUser, authorizeRoles("student"), as
       `)
       .eq("year", year)
       .eq("is_active", true);
-
-    console.log('📚 Offered subjects found:', offeredSubjects?.length || 0);
-    console.log('📚 Subject types:', offeredSubjects?.map(os => ({ 
-      name: os.subjects?.name, 
-      type: os.subjects?.type,
-      dept_id: os.department_id
-    })));
 
     if (offeredError) throw offeredError;
 
@@ -670,31 +640,22 @@ router.get("/elective-subjects", authenticateUser, authorizeRoles("student"), as
       // MDM - Show for Year 2 and Year 3
       if ((year === 2 || year === 3) && (subjectType === 'mdm' || subjectName.includes('multidisciplinary') || subjectName.includes('mdm'))) {
         electiveSubjects.mdm.push(subjectData);
-        console.log('✅ Added MDM subject:', subject.name);
       } 
       // OE - Show for Year 2, Year 3, and Year 4
       else if ((year === 2 || year === 3 || year === 4) && (subjectType === 'oe' || subjectName.includes('open elective') || subjectName.includes('oe'))) {
         electiveSubjects.oe.push(subjectData);
-        console.log('✅ Added OE subject:', subject.name);
       } 
       // PE - Show for Year 3 and Year 4
       else if ((year === 3 || year === 4) && (subjectType === 'pe' || subjectName.includes('professional elective') || subjectName.includes('pe'))) {
         // For PE, only show subjects from student's department
         if (offered.department_id === department_id) {
           electiveSubjects.pe.push(subjectData);
-          console.log('✅ Added PE subject:', subject.name);
         } else {
-          console.log('⏭️ Skipped PE subject (different department):', subject.name);
+          console.log('Skipped PE subject (different department):', subject.name);
         }
       } else {
-        console.log('⏭️ Subject not shown for year', year, ':', subject.name, 'Type:', subject.type);
+        console.log('Subject not shown for year', year, ':', subject.name, 'Type:', subject.type);
       }
-    });
-
-    console.log('Elective subjects organized:', {
-      mdm: electiveSubjects.mdm.length,
-      oe: electiveSubjects.oe.length,
-      pe: electiveSubjects.pe.length
     });
 
     return res.json({
@@ -746,8 +707,6 @@ router.get("/defaulter-work", authenticateUser, authorizeRoles("student"), async
 
     if (error) throw error;
 
-    console.log('📋 Defaulter work found:', defaulterWork?.length || 0);
-
     // Filter defaulter work to only show:
     // 1. Regular subjects (theory, practical) - show all
     // 2. Elective subjects (mdm, oe, pe) - only show if student selected that faculty for that subject
@@ -780,9 +739,6 @@ router.get("/defaulter-work", authenticateUser, authorizeRoles("student"), async
       return true;
     });
 
-    console.log('📋 Filtered defaulter work:', filteredWork.length);
-    console.log('📋 Student selections:', studentSelections);
-
     const formattedWork = filteredWork.map(work => ({
       id: work.id,
       subjectCode: work.subjects?.subject_code || 'N/A',
@@ -792,8 +748,6 @@ router.get("/defaulter-work", authenticateUser, authorizeRoles("student"), async
       assignedDate: work.created_at,
       status: work.status || 'pending'
     }));
-
-    console.log('📋 Formatted defaulter work:', formattedWork.length);
 
     return res.json({
       success: true,
@@ -889,7 +843,7 @@ router.post("/select-elective", authenticateUser, authorizeRoles("student"), asy
         });
       }
     } catch (err) {
-      console.error("❌ Error selecting elective:", err);
+      console.error("Error selecting elective:", err);
       return res.status(500).json({ success: false, error: err.message });
     }
   }

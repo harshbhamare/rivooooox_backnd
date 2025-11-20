@@ -191,19 +191,11 @@ router.get("/faculty-subjects", authenticateUser, authorizeRoles("faculty", "cla
       // Convert map to arrays
       const allSubjects = Array.from(subjectMap.values());
       
-      // Log for debugging
-      console.log('📚 Faculty subjects endpoint - Faculty ID:', faculty_id);
-      console.log('📚 Total subjects found:', allSubjects.length);
-      console.log('📚 Subject types:', allSubjects.map(s => ({ name: s.name, type: s.type })));
-      console.log('📚 Offered subjects count:', offeredSubjects?.length || 0);
-      console.log('📚 Elective selections count:', electiveSelections?.length || 0);
       
       // Separate by type - practical goes to practical array, everything else to theory
       const theorySubjects = allSubjects.filter(s => s.type !== "practical");
       const practicalSubjects = allSubjects.filter(s => s.type === "practical");
 
-      console.log('📚 Theory subjects:', theorySubjects.length);
-      console.log('📚 Practical subjects:', practicalSubjects.length);
 
       return res.json({
         success: true,
@@ -529,7 +521,7 @@ router.post("/mark-submission", authenticateUser, authorizeRoles("faculty", "cla
         });
       }
     } catch (err) {
-      console.error("❌ Error marking submission:", err);
+      console.error("Error marking submission:", err);
       return res.status(500).json({ success: false, error: err.message });
     }
   }

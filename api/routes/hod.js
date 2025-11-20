@@ -148,8 +148,6 @@ router.get("/class-teachers", authenticateUser, authorizeRoles("hod"), async (re
       !teacher.department_id || teacher.department_id === department_id
     );
 
-    console.log(`Found ${teachers.length} total teachers, ${availableTeachers.length} available for department ${department_id}`);
-
     res.json({ success: true, teachers: availableTeachers });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -422,8 +420,6 @@ router.delete("/offered-subjects/:id", authenticateUser, authorizeRoles("hod"), 
     const { id } = req.params;
     const department_id = req.user.department_id;
 
-    console.log('Delete subject request:', { id, department_id });
-
     if (!department_id) {
       console.error('Department ID missing in token');
       return res.status(403).json({
@@ -440,7 +436,6 @@ router.delete("/offered-subjects/:id", authenticateUser, authorizeRoles("hod"), 
       .eq("department_id", department_id)
       .single();
 
-    console.log('Existing subject check:', { existingSubject, checkError });
 
     if (checkError || !existingSubject) {
       console.error('Subject not found or access denied:', checkError);
@@ -484,8 +479,6 @@ router.delete("/offered-subjects/:id", authenticateUser, authorizeRoles("hod"), 
       throw subjectDeleteError;
     }
 
-    console.log('Subject deleted successfully from all tables');
-
     res.json({
       success: true,
       message: "Subject deleted successfully",
@@ -501,16 +494,6 @@ router.post("/add-offered-subject", authenticateUser, authorizeRoles("hod"),
     try {
       const { name, subject_code, type, faculty_ids, semester, year } = req.body;
       const department_id = req.user.department_id;
-
-      console.log('Add offered subject request:', {
-        name,
-        subject_code,
-        type,
-        faculty_ids,
-        semester,
-        year,
-        department_id
-      });
 
       if (!department_id) {
         console.error('Department ID missing in token');
@@ -656,8 +639,6 @@ router.get("/year-statistics", authenticateUser, authorizeRoles("hod"), async (r
       });
     }
 
-    console.log('📊 Fetching year statistics for department:', department_id);
-
     // Get all classes in this department grouped by year
     const { data: classes, error: classesError } = await supabase
       .from("classes")
@@ -743,8 +724,6 @@ router.get("/year-statistics", authenticateUser, authorizeRoles("hod"), async (r
         };
       })
     );
-
-    console.log('✅ Year statistics calculated:', yearStats);
 
     return res.json({
       success: true,

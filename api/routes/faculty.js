@@ -184,9 +184,6 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
     // Get all student IDs to fetch their submissions
     const allStudentIds = allStudents.map(s => s.id);
     
-    console.log('📊 Faculty students endpoint - Faculty ID:', facultyId);
-    console.log('📊 Total students found:', allStudents.length);
-    console.log('📊 Student IDs:', allStudentIds.slice(0, 5));
     
     // Fetch all submissions for these students
     let submissions = [];
@@ -197,18 +194,15 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
         .in('student_id', allStudentIds);
 
       if (submissionsError) {
-        console.error('❌ Error fetching submissions:', submissionsError);
+        console.error('Error fetching submissions:', submissionsError);
         throw submissionsError;
       }
       submissions = submissionsData || [];
-      console.log('📊 Total submissions found:', submissions.length);
-      console.log('📊 Sample submissions:', JSON.stringify(submissions.slice(0, 5), null, 2));
       
       // Check unique statuses
       const uniqueStatuses = [...new Set(submissions.map(s => s.status))];
-      console.log('📊 Unique status values in database:', uniqueStatuses);
     } else {
-      console.log('⚠️ No students found, skipping submission fetch');
+      console.log(' No students found, skipping submission fetch');
     }
 
     // Get submission types
@@ -222,18 +216,10 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
     const cieType = (submissionTypes || []).find(t => t.name === 'CIE');
     const defaulterType = (submissionTypes || []).find(t => t.name === 'Defaulter work');
     
-    console.log('📊 Submission types:', {
-      TA: taType?.id,
-      CIE: cieType?.id,
-      Defaulter: defaulterType?.id
-    });
 
     // Log subject IDs from assignments vs submissions
     const assignmentSubjectIds = [...new Set((assignments || []).map(a => a.subjects?.id).filter(Boolean))];
     const submissionSubjectIds = [...new Set(submissions.map(s => s.subject_id))];
-    console.log('📊 Faculty assigned to subject IDs:', assignmentSubjectIds);
-    console.log('📊 Submissions exist for subject IDs:', submissionSubjectIds);
-    console.log('📊 Matching subject IDs:', assignmentSubjectIds.filter(id => submissionSubjectIds.includes(id)));
 
     // Map students to their subjects based on assignments
     const studentsWithSubjects = [];
@@ -267,23 +253,6 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
             cie_status: cieSubmission?.status || 'pending',
             defaulter_status: defaulterSubmission?.status || 'pending'
           };
-
-          // Log first student for debugging
-          if (studentsWithSubjects.length === 0) {
-            console.log('📊 First student-subject mapping:', {
-              student_id: student.id,
-              student_name: student.name,
-              subject_id: assignment.subjects.id,
-              subject_name: assignment.subjects.name,
-              subject_type: assignment.subjects.type,
-              submissions_found: studentSubjectSubmissions.length,
-              all_submissions_for_student: submissions.filter(s => s.student_id === student.id).length,
-              student_submission_subject_ids: submissions.filter(s => s.student_id === student.id).map(s => s.subject_id),
-              ta_status: studentData.ta_status,
-              cie_status: studentData.cie_status,
-              defaulter_status: studentData.defaulter_status
-            });
-          }
 
           studentsWithSubjects.push(studentData);
         }
@@ -475,22 +444,6 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
 
       const submissionPercentage = totalSubmissions > 0 ? Math.round((completedSubmissions / totalSubmissions) * 100) : 0;
 
-      // Log first 3 students for debugging
-      if (index < 3) {
-        console.log(`📊 Student ${index + 1} percentage calculation:`, {
-          name: student.name,
-          subject: student.subject_name,
-          type: student.subject_type,
-          is_defaulter: student.defaulter,
-          ta_status: student.ta_status,
-          cie_status: student.cie_status,
-          defaulter_status: student.defaulter_status,
-          total: totalSubmissions,
-          completed: completedSubmissions,
-          percentage: submissionPercentage
-        });
-      }
-
       return {
         ...student,
         submission_percentage: submissionPercentage,
@@ -501,36 +454,6 @@ router.get('/students', authenticateUser, authorizeRoles("faculty"), async (req,
 
     // Find students with actual submissions to show as examples
     const studentsWithSubmissions = studentsWithPercentages.filter(s => s.completed_submissions > 0);
-    
-    console.log('📊 Total student-subject pairs to return:', studentsWithPercentages.length);
-    console.log('📊 Students with submissions:', studentsWithSubmissions.length);
-    console.log('📊 Sample student data with percentages:', studentsWithPercentages.slice(0, 2).map(s => ({
-      name: s.name,
-      subject: s.subject_name,
-      type: s.subject_type,
-      ta: s.ta_status,
-      cie: s.cie_status,
-      defaulter_status: s.defaulter_status,
-      is_defaulter: s.defaulter,
-      percentage: s.submission_percentage,
-      completed: s.completed_submissions,
-      total: s.total_submissions
-    })));
-    
-    if (studentsWithSubmissions.length > 0) {
-      console.log('📊 Sample students WITH submissions:', studentsWithSubmissions.slice(0, 3).map(s => ({
-        name: s.name,
-        subject: s.subject_name,
-        subject_id: s.subject_id,
-        type: s.subject_type,
-        ta: s.ta_status,
-        cie: s.cie_status,
-        percentage: s.submission_percentage,
-        completed: s.completed_submissions,
-        total: s.total_submissions
-      })));
-    }
-
     return res.json({ success: true, students: studentsWithPercentages });
   } catch (err) {
     console.error('Error fetching faculty students:', err);

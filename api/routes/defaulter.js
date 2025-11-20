@@ -142,12 +142,6 @@ router.post("/assign-defaulter-work", authenticateUser, authorizeRoles("faculty"
       // Remove duplicates
       studentIds = [...new Set(studentIds)];
 
-      console.log('📝 Assigning defaulter work:');
-      console.log('   Subject ID:', subject_id);
-      console.log('   Faculty ID:', faculty_id);
-      console.log('   Student IDs found:', studentIds.length);
-      console.log('   Students:', studentIds);
-
       // Step 2: Check if we found any defaulter students
       if (!studentIds || studentIds.length === 0) {
         return res.status(200).json({
@@ -172,19 +166,15 @@ router.post("/assign-defaulter-work", authenticateUser, authorizeRoles("faculty"
         status: "pending", // Status must be "pending" or "completed" per constraint
       }));
 
-      console.log('📝 Insert payload count:', insertPayload.length);
-      console.log('📝 Sample payload:', insertPayload[0]);
 
       const { error: insertError } = await supabase
         .from("defaulter_submissions")
         .insert(insertPayload);
 
       if (insertError) {
-        console.error("❌ Insert error details:", insertError);
+        console.error("Insert error details:", insertError);
         throw insertError;
       }
-
-      console.log('✅ Defaulter work assigned successfully to', insertPayload.length, 'students');
 
       return res.status(201).json({
         success: true,

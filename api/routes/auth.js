@@ -136,8 +136,6 @@ router.post("/login", async (req, res) => {
       expiresIn: "7d",
     });
 
-    console.log("Token Payload:", payload);
-
     // Response
     res.status(200).json({
       success: true,
@@ -173,15 +171,11 @@ router.post("/student/login", async (req, res) => {
       });
     }
 
-    // 🧠 Fetch student by hall_ticket_number
-    console.log('Looking for student with hall ticket:', hall_ticket_number);
     const { data: student, error: studentError } = await supabase
       .from("students")
       .select("*")
       .eq("hall_ticket_number", hall_ticket_number)
       .maybeSingle();
-
-    console.log('Student login query result:', { student: student ? { id: student.id, name: student.name } : null, studentError });
 
     if (studentError || !student) {
       console.error("No student found:", studentError);
@@ -207,8 +201,6 @@ router.post("/student/login", async (req, res) => {
       class_id: student.class_id,
       batch_id: student.batch_id,
     };
-
-    console.log('Creating JWT with payload:', payload);
 
     // 🎟️ Generate JWT token
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
