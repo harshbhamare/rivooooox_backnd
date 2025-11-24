@@ -28,6 +28,7 @@ import classTeacherRoutes from "./routes/classTeacherRoutes.js"
 import facultyRoutes from "./routes/faculty.js"
 import defaulterRoutes from "./routes/defaulter.js"
 import submissionRoutes from "./routes/submissionRoute.js"
+import exportRoutes from "./routes/exportRoutes.js"
 
 app.use('/api/students', studentRoutes)
 app.use("/api/auth", authRoutes);
@@ -37,6 +38,7 @@ app.use("/api/class-teacher", classTeacherRoutes)
 app.use("/api/faculty", facultyRoutes)
 app.use("/api/defaulter/", defaulterRoutes)
 app.use("/api/submissions/", submissionRoutes)
+app.use("/api/export", exportRoutes);
 
 // app.listen(process.env.PORT, () => {
 //   console.log(`Server running on port ${process.env.PORT}`);
