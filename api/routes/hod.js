@@ -735,4 +735,104 @@ router.get("/year-statistics", authenticateUser, authorizeRoles("hod"), async (r
   }
 });
 
+// Reset faculty password (HOD only)
+router.post("/reset-faculty-password", authenticateUser, authorizeRoles("hod"), async (req, res) => {
+  try {
+    const hod_id = req.user.id;
+    const { faculty_id, new_password } = req.body;
+
+    // Validation
+    if (!faculty_id || !new_password) {
+      return res.status(400).json({
+        success: false,
+        error: "Faculty ID and new password are required"
+      });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: "Password must be at least 6 characters long"
+      });
+    }
+
+    // Get HOD's department
+    const { data: hodData, error: hodError } = await supabase
+      .from("users")
+      .select("department_id")
+      .eq("id", hod_id)
+      .single();
+
+    if (hodError) throw hodError;
+
+    if (!hodData || !hodData.department_id) {
+      return res.status(403).json({
+        success: false,
+        error: "HOD department not found"
+      });
+    }
+
+    // Verify faculty belongs to same department and is not a student
+    const { data: facultyData, error: facultyError } = await supabase
+      .from("users")
+      .select("id, name, email, role, department_id")
+      .eq("id", faculty_id)
+      .single();
+
+    if (facultyError) throw facultyError;
+
+    if (!facultyData) {
+      return res.status(404).json({
+        success: false,
+        error: "Faculty not found"
+      });
+    }
+
+    // Security checks
+    if (facultyData.role === 'student') {
+      return res.status(403).json({
+        success: false,
+        error: "Cannot reset password for students"
+      });
+    }
+
+    if (facultyData.role === 'director') {
+      return res.status(403).json({
+        success: false,
+        error: "Cannot reset password for director"
+      });
+    }
+
+    if (facultyData.department_id !== hodData.department_id) {
+      return res.status(403).json({
+        success: false,
+        error: "Can only reset passwords for faculty in your department"
+      });
+    }
+
+    // Hash the new password
+    const bcrypt = await import('bcryptjs');
+    const hashedPassword = await bcrypt.default.hash(new_password, 10);
+
+    // Update password
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ password: hashedPassword })
+      .eq("id", faculty_id);
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ Password reset by HOD ${hod_id} for faculty ${faculty_id} (${facultyData.name})`);
+
+    return res.json({
+      success: true,
+      message: `Password reset successfully for ${facultyData.name}`
+    });
+
+  } catch (err) {
+    console.error("Error resetting faculty password:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 export default router;
